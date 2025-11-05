@@ -58,7 +58,13 @@ export class AppService {
     const provider = process.env.LLM_PROXY_PROVIDER;
     const url = `${upstream}/v1/chat/completions`;
 
-    body['provider'] = provider;
+    // Ajouter le provider seulement s'il est défini
+    if (provider) {
+      body['provider'] = provider;
+    }
+
+    // Déterminer si on veut du streaming ou non
+    const isStreaming = body['stream'] !== false;
 
     return this.http
       .post(url, body, {
@@ -67,10 +73,19 @@ export class AppService {
           'Content-Type': 'application/json',
           ...(auth ? { Authorization: auth } : {}),
         },
-        responseType: 'stream'
+        responseType: isStreaming ? 'stream' : 'json'
       })
       .pipe(
-        map(resp => resp.data as Readable)
+        map(resp => {
+          // Si ce n'est pas du streaming, convertir la réponse JSON en stream
+          if (!isStreaming && typeof resp.data === 'object') {
+            const readable = new Readable();
+            readable.push(JSON.stringify(resp.data));
+            readable.push(null);
+            return readable;
+          }
+          return resp.data as Readable;
+        })
       );
   }
 }
