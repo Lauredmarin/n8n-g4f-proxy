@@ -1,0 +1,26 @@
+name: Trigger Portainer webhook on push
+
+on:
+  push:
+    branches:     # déclenche pour toutes les branches
+      - '**'
+
+jobs:
+  notify-portainer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send webhook to Portainer (using secret)
+        env:
+          WEBHOOK_URL: "https://portainer.maarin.dedyn.io/api/stacks/webhooks/81826deb-238e-4c1d-ab87-d258f3aacc52"
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "ERROR: WEBHOOK_URL is empty. Add PORTAINER_WEBHOOK_URL secret to the repo."
+            exit 1
+          fi
+
+          # simple JSON payload with basic info
+          PAYLOAD=$(printf '{"ref":"%s","actor":"%s","repository":"%s","compare":"%s"}' "$GITHUB_REF" "$GITHUB_ACTOR" "$GITHUB_REPOSITORY" "$GITHUB_COMPARE_URL")
+
+          echo "Sending webhook to Portainer..."
+          curl -sS -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK_URL" || exit 2
+          echo "Webhook sent."
