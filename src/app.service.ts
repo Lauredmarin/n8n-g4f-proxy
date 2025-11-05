@@ -9,7 +9,6 @@ export class AppService {
 
   async getModels(headers: any): Promise<any> {
     const auth: string | null = headers['authorization'];
-
     const upstream = process.env.LLM_UPSTREAM;
     const providerKey = (process.env.LLM_PROXY_PROVIDER ?? '').toLowerCase();
     const url = `${upstream}/backend-api/v2/models`;
@@ -20,7 +19,10 @@ export class AppService {
       }),
     );
 
-    const filteredModels = resp.data.filter((model: any) => {
+    // Gérer le cas où data peut être imbriqué ou être directement un tableau
+    const models = Array.isArray(resp.data) ? resp.data : (resp.data.data || []);
+    
+    const filteredModels = models.filter((model: any) => {
       return model.providers?.some((provider: string) =>
         provider.toLowerCase() === providerKey
       );
@@ -46,12 +48,12 @@ export class AppService {
     const response = await lastValueFrom(
       this.http.get<string>(url)
     );
+
     return response.data;
   }
 
   postCompletions(body: any, headers: any): Observable<Readable> {
     const auth: string | null = headers['authorization'];
-
     const upstream = process.env.LLM_UPSTREAM;
     const provider = process.env.LLM_PROXY_PROVIDER;
     const url = `${upstream}/v1/chat/completions`;
